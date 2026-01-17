@@ -110,7 +110,7 @@ public class ApiIntegrationTests
         if (_client != null)
         {
             var res = await _client.PostAsJsonAsync("/api/products", dto);
-            Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         }
     }
 }

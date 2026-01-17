@@ -39,6 +39,9 @@ public class ProductService : IProductService
         await _productRepository.AddAsync(product);
         await _productRepository.SaveChangesAsync();
 
+        // Attach the category navigation so mapping includes CategoryName
+        product.Category = category;
+
         // Invalidate caches
         _cache.Remove(ProductsCacheKey);
         _cache.Remove(ProductsByCategoryKey + product.CategoryId);
@@ -114,11 +117,13 @@ public class ProductService : IProductService
         if (category == null)
             throw new InvalidOperationException("Category does not exist.");
 
+        var previousCategoryId = existing.CategoryId;
         existing.Name = product.Name;
         existing.Description = product.Description;
         existing.Price = product.Price;
         existing.Stock = product.Stock;
         existing.CategoryId = product.CategoryId;
+        existing.Category = category; // attach navigation so DTO has CategoryName
 
         _productRepository.Update(existing);
         await _productRepository.SaveChangesAsync();
@@ -126,6 +131,8 @@ public class ProductService : IProductService
         // Invalidate caches
         _cache.Remove(ProductsCacheKey);
         _cache.Remove(ProductByIdKey + product.Id);
+        // remove cache for both old and new category lists
+        _cache.Remove(ProductsByCategoryKey + previousCategoryId);
         _cache.Remove(ProductsByCategoryKey + product.CategoryId);
 
         return existing;

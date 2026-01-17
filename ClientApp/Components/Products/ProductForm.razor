@@ -1,4 +1,9 @@
+@using Microsoft.AspNetCore.Components.Forms
 @using global::Shared.DTOs
+@using ClientApp.Services
+
+@inject CategoryApiService CategoryService
+@inject CategoryState CategoryState
 
 <EditForm EditContext="_editContext" OnValidSubmit="HandleValidSubmit">
     <DataAnnotationsValidator/>
@@ -16,12 +21,23 @@
     </div>
 
     <div class="row">
-        <div class="col-md-6 mb-3">
+        <div class="col-md-4 mb-3">
+            <label class="form-label">Category</label>
+            <InputSelect class="form-select" @bind-Value="SelectedCategoryId">
+                <option value="0">-- Select category --</option>
+                @foreach (var c in _categories)
+                {
+                    <option value="@c.Id">@c.Name</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="() => Model.CategoryId" />
+        </div>
+        <div class="col-md-4 mb-3">
             <label class="form-label">Price</label>
             <InputNumber class="form-control" @bind-Value="Model.Price"/>
             <ValidationMessage For="() => Model.Price"/>
         </div>
-        <div class="col-md-6 mb-3">
+        <div class="col-md-4 mb-3">
             <label class="form-label">Stock</label>
             <InputNumber class="form-control" @bind-Value="Model.Stock"/>
             <ValidationMessage For="() => Model.Stock"/>
@@ -45,6 +61,21 @@
     // keep a reference to detect when parent passes a new model instance
     private ProductDto? _previousModelRef;
 
+    private List<CategoryDto> _categories = new();
+
+    // helper property so we can set CategoryName when selection changes
+    private int SelectedCategoryId
+    {
+        get => Model.CategoryId;
+        set
+        {
+            if (Model.CategoryId == value) return;
+            Model.CategoryId = value;
+            var cat = _categories.FirstOrDefault(x => x.Id == value);
+            Model.CategoryName = cat?.Name;
+        }
+    }
+
     // Recreate the EditContext whenever the Model parameter changes so parents
     // that replace the model (as the modals do) will receive the fresh EditContext.
     protected override async Task OnParametersSetAsync()
@@ -57,6 +88,38 @@
             await OnEditContextInitialized.InvokeAsync(_editContext);
             StateHasChanged();
         }
+
+        // ensure categories are loaded (use CategoryState cache if available)
+        await EnsureCategoriesLoadedAsync();
+    }
+
+    private async Task EnsureCategoriesLoadedAsync()
+    {
+        if (CategoryState.Items.Any())
+        {
+            _categories = CategoryState.Items.ToList();
+        }
+        else
+        {
+            var res = await CategoryService.GetAllAsync();
+            if (res.IsSuccess && res.Data is not null)
+            {
+                _categories = res.Data.ToList();
+                CategoryState.SetAll(_categories);
+            }
+            else
+            {
+                // fallback: keep categories empty; validation will handle missing selection
+                _categories = new List<CategoryDto>();
+            }
+        }
+
+        // ensure Model.CategoryName is in sync with CategoryId (if any)
+        if (Model.CategoryId != 0 && string.IsNullOrEmpty(Model.CategoryName))
+        {
+            var cat = _categories.FirstOrDefault(x => x.Id == Model.CategoryId);
+            if (cat != null) Model.CategoryName = cat.Name;
+        }
     }
 
     private async Task HandleValidSubmit()
@@ -64,6 +127,4 @@
         if (OnValidSubmit.HasDelegate)
             await OnValidSubmit.InvokeAsync(Model);
     }
-
 }
-

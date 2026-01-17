@@ -3,5 +3,6 @@
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=61b5abae_002D0c9f_002D4b18_002D896d_002D2eb630fbe2e1/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="ApiIntegrationTests" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
   &lt;TestAncestor&gt;
     &lt;TestId&gt;NUnit3x::86CD8B88-1082-47FB-80C1-62187CC06F32::net10.0::ServerApp.Tests.ApiIntegrationTests&lt;/TestId&gt;
+    &lt;TestId&gt;NUnit3x::86CD8B88-1082-47FB-80C1-62187CC06F32::net10.0::ServerApp.Tests.ProductServiceTests.CreateProduct_Fails_WhenCategoryMissing&lt;/TestId&gt;
   &lt;/TestAncestor&gt;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>
