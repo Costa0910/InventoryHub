@@ -1,8 +1,25 @@
+using Microsoft.EntityFrameworkCore;
+using ServerApp.Application.Interfaces;
+using ServerApp.Infrastructure.Persistence;
+using ServerApp.Infrastructure.Repositories;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Register DbContext and repositories
+var connectionString = builder.Configuration.GetConnectionString("Inventory")
+                       ?? $"Data Source={Path.Combine(builder.Environment.ContentRootPath, "inventory.db")}";
+
+builder.Services.AddDbContext<InventoryDbContext>(options =>
+{
+    options.UseSqlite(connectionString);
+});
+
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 
 var app = builder.Build();
 
