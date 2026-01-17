@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ServerApp.Domain;
 
 namespace ServerApp.Infrastructure.Persistence;
@@ -9,9 +10,19 @@ public static class DbSeeder
     {
         using var scope = services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+        var loggerFactory = scope.ServiceProvider.GetService<ILoggerFactory>();
+        var logger = loggerFactory?.CreateLogger(typeof(DbSeeder).FullName ?? "DbSeeder");
 
-        // Apply any pending migrations
-        await context.Database.MigrateAsync();
+        // Try to apply any pending migrations;
+        try
+        {
+            await context.Database.MigrateAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger?.LogWarning(ex, "Migrations could not be applied; falling back to EnsureCreated.");
+            await context.Database.EnsureCreatedAsync();
+        }
 
         if (await context.Categories.AnyAsync())
             return; // already seeded
@@ -35,4 +46,3 @@ public static class DbSeeder
         await context.SaveChangesAsync();
     }
 }
-
