@@ -33,8 +33,11 @@ var app = builder.Build();
 // Use centralized global exception handler middleware
 app.UseGlobalExceptionHandler();
 
-// Seed initial data
-await DbSeeder.SeedAsync(app.Services);
+// Seed initial data (skip during integration tests)
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    await DbSeeder.SeedAsync(app.Services);
+}
 
 // Map endpoint groups
 app.MapProductEndpoints();
@@ -49,3 +52,4 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 await app.RunAsync();
+
