@@ -15,4 +15,3 @@ public class CategoryRepository(InventoryDbContext context) : GenericRepository<
         return await _dbSet.FirstOrDefaultAsync(c => c.Name == name);
     }
 }
-

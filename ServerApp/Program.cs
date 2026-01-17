@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ServerApp.Application.Interfaces;
+using ServerApp.Application.Services;
 using ServerApp.Infrastructure.Persistence;
 using ServerApp.Infrastructure.Repositories;
 
@@ -20,6 +21,10 @@ builder.Services.AddDbContext<InventoryDbContext>(options =>
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+
+// Register application services
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 var app = builder.Build();
 
