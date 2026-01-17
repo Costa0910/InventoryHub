@@ -17,4 +17,17 @@
         <ProjectReference Include="..\Shared\Shared.csproj"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Shared\Categories\CategoryForm.razor" />
+      <_ContentIncludedByDefault Remove="Shared\Categories\CreateCategoryModal.razor" />
+      <_ContentIncludedByDefault Remove="Shared\Categories\EditCategoryModal.razor" />
+      <_ContentIncludedByDefault Remove="Shared\ConfirmModal.razor" />
+      <_ContentIncludedByDefault Remove="Shared\CreateProductModal.razor" />
+      <_ContentIncludedByDefault Remove="Shared\EditProductModal.razor" />
+      <_ContentIncludedByDefault Remove="Shared\Modal.razor" />
+      <_ContentIncludedByDefault Remove="Shared\Notification.razor" />
+      <_ContentIncludedByDefault Remove="Shared\ProductDetailsModal.razor" />
+      <_ContentIncludedByDefault Remove="Shared\ProductForm.razor" />
+    </ItemGroup>
+
 </Project>

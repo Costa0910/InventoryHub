@@ -1,0 +1,120 @@
+@page "/categories"
+@using ClientApp.Services
+@using global::Shared.DTOs
+@inject CategoryApiService CategoryService
+@inject NotificationService Notifications
+@inject CategoryState CategoryState
+
+<h3>Categories</h3>
+
+<div class="d-flex mb-3 gap-2">
+    <input class="form-control me-2" placeholder="Search by name" @bind="_search" @bind:event="oninput" />
+    <button class="btn btn-outline-secondary" @onclick="Refresh">Refresh</button>
+    <button class="btn btn-primary ms-auto" @onclick="() => _createModal?.Show()">Create Category</button>
+</div>
+
+@if (_loading)
+{
+    <div>Loading...</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in FilteredCategories)
+                {
+                    <tr>
+                        <td>@c.Id</td>
+                        <td>@c.Name</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => EditCategory(c)">Edit</button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDeleteModal(c.Id)">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<ConfirmModal @ref="_confirmModal" Title="Delete category" Message="Are you sure you want to delete this category?" OnConfirmed="OnConfirmedDelete" />
+<CreateCategoryModal @ref="_createModal" />
+<EditCategoryModal @ref="_editModal" />
+
+@code {
+    private List<CategoryDto> _categories = [];
+    private string _search = string.Empty;
+    private bool _loading = true;
+
+    private IEnumerable<CategoryDto> FilteredCategories => string.IsNullOrWhiteSpace(_search)
+        ? _categories
+        : _categories.Where(p => p.Name.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    private ConfirmModal? _confirmModal;
+    private EditCategoryModal? _editModal;
+    private CreateCategoryModal? _createModal;
+    private int _pendingDeleteId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CategoryState.OnChange += OnStateChanged;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        var res = await CategoryService.GetAllAsync();
+        if (res is { IsSuccess: true, Data: not null })
+        {
+            _categories = res.Data.ToList();
+            CategoryState.SetAll(_categories);
+        }
+        else
+        {
+            Notifications.Add(res.ErrorMessage ?? "Failed to load categories", "Error", NotificationLevel.Error, 8000);
+        }
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task Refresh() => await LoadAsync();
+
+    private void EditCategory(CategoryDto c) => _editModal?.Show(c);
+
+    private void ConfirmDeleteModal(int id)
+    {
+        _pendingDeleteId = id;
+        _confirmModal?.Show();
+    }
+
+    private async Task OnConfirmedDelete(bool confirmed)
+    {
+        if (!confirmed) return;
+        var res = await CategoryService.DeleteAsync(_pendingDeleteId);
+        if (res.IsSuccess)
+        {
+            Notifications.Add("Category deleted", "Deleted", NotificationLevel.Success, 4000);
+            CategoryState.Remove(_pendingDeleteId);
+        }
+        else
+        {
+            Notifications.Add(res.ErrorMessage ?? "Delete failed", "Error", NotificationLevel.Error, 8000);
+        }
+    }
+
+    private void OnStateChanged()
+    {
+        _categories = CategoryState.Items.ToList();
+        StateHasChanged();
+    }
+}

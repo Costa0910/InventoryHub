@@ -4,13 +4,17 @@
 @inject NotificationService Notifications
 @inject ProductState ProductState
 
-<Modal @ref="_modal" Title="Edit Product" Size="lg">
+<Modal @ref="_modal" Title="Create Product" Size="lg">
     <ChildContent>
-        <ProductForm Model="_model" OnEditContextInitialized="OnEditContextInit" OnValidSubmit="OnSubmit" />
+        <ProductForm Model="_model" OnEditContextInitialized="OnEditContextInit" OnValidSubmit="OnSubmit">
+            <!-- extra content could go here -->
+        </ProductForm>
     </ChildContent>
     <FooterContent>
         <button class="btn btn-secondary me-2" @onclick="Cancel" type="button">Cancel</button>
-        <button class="btn btn-primary" @onclick="SubmitClick" type="button" disabled="@(_edit_context == null)">Save</button>
+        <button class="btn btn-primary" @onclick="SubmitClick" type="button" disabled="@(_edit_context == null)">
+            Create
+        </button>
     </FooterContent>
 </Modal>
 
@@ -19,18 +23,9 @@
     private ProductDto _model = new();
     private EditContext? _edit_context;
 
-    public void Show(ProductDto product)
+    public void Show()
     {
-        _model = new ProductDto
-        {
-            Id = product.Id,
-            Name = product.Name,
-            Description = product.Description,
-            Price = product.Price,
-            Stock = product.Stock,
-            CategoryId = product.CategoryId,
-            CategoryName = product.CategoryName
-        };
+        _model = new ProductDto();
         _edit_context = null;
         _modal?.Show();
         StateHasChanged();
@@ -46,20 +41,22 @@
 
     private async Task OnSubmit(ProductDto dto)
     {
-        var res = await ProductService.UpdateAsync(dto);
+        var res = await ProductService.CreateAsync(dto);
         if (res.IsSuccess)
         {
-            Notifications.Add("Product updated","Updated", NotificationLevel.Success);
+            Notifications.Add("Product created", "Created", NotificationLevel.Success);
             if (res.Data is not null) ProductState.AddOrUpdate(res.Data);
             else
             {
                 var all = await ProductService.GetAllAsync();
                 if (all.IsSuccess && all.Data is not null) ProductState.SetAll(all.Data);
             }
+
             Hide();
         }
         else
         {
+            // Map validation errors to editcontext
             if (res.Errors != null && _edit_context != null)
             {
                 var store = new ValidationMessageStore(_edit_context);
@@ -67,26 +64,25 @@
                 foreach (var kv in res.Errors)
                 {
                     var prop = typeof(ProductDto).GetProperty(kv.Key, System.Reflection.BindingFlags.IgnoreCase | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                    if (prop != null) store.Add(new FieldIdentifier(_model, prop.Name), kv.Value);
-                    else store.Add(new FieldIdentifier(_model, string.Empty), kv.Value);
+                    store.Add(prop != null ? new FieldIdentifier(_model, prop.Name) : new FieldIdentifier(_model, string.Empty), kv.Value);
                 }
+
                 _edit_context.NotifyValidationStateChanged();
             }
             else
             {
-                Notifications.Add(res.ErrorMessage ?? "Update failed","Error", NotificationLevel.Error);
+                Notifications.Add(res.ErrorMessage ?? "Create failed", "Error", NotificationLevel.Error);
             }
         }
     }
 
     private void SubmitClick()
     {
-        if (_edit_context != null)
-        {
-            if (_edit_context.Validate()) _ = OnSubmit(_model);
-            else _edit_context.NotifyValidationStateChanged();
-        }
+        if (_edit_context == null) return;
+        if (_edit_context.Validate()) _ = OnSubmit(_model);
+        else _edit_context.NotifyValidationStateChanged();
     }
 
     private void Cancel() => Hide();
 }
+

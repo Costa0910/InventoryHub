@@ -21,6 +21,9 @@ builder.Services.AddSingleton<NotificationService>();
 // Register ProductState
 builder.Services.AddSingleton<ProductState>();
 
+// Register CategoryState
+builder.Services.AddSingleton<CategoryState>();
+
 // Configure a named HttpClient "Api" that uses the error handler and BaseAddress
 builder.Services.AddHttpClient("Api", client => client.BaseAddress = new Uri(apiBase))
     .AddHttpMessageHandler<ApiErrorHandler>();

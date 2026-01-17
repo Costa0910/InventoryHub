@@ -1,0 +1,81 @@
+@using ClientApp.Services
+@using global::Shared.DTOs
+@inject CategoryApiService CategoryService
+@inject NotificationService Notifications
+@inject CategoryState CategoryState
+
+<Modal @ref="_modal" Title="Create Category" Size="md">
+    <ChildContent>
+        <CategoryForm Model="_model" OnEditContextInitialized="OnEditContextInit" OnValidSubmit="OnSubmit" />
+    </ChildContent>
+    <FooterContent>
+        <button class="btn btn-secondary me-2" @onclick="Cancel" type="button">Cancel</button>
+        <button class="btn btn-primary" @onclick="SubmitClick" type="button" disabled="@(_editContext == null)">Create</button>
+    </FooterContent>
+</Modal>
+
+@code {
+    private Modal? _modal;
+    private CategoryDto _model = new();
+    private EditContext? _editContext;
+
+    public void Show()
+    {
+        _model = new CategoryDto();
+        _editContext = null;
+        _modal?.Show();
+        StateHasChanged();
+    }
+
+    public void Hide() => _modal?.Hide();
+
+    private Task OnEditContextInit(EditContext ec)
+    {
+        _editContext = ec;
+        return Task.CompletedTask;
+    }
+
+    private async Task OnSubmit(CategoryDto dto)
+    {
+        var res = await CategoryService.CreateAsync(dto);
+        if (res.IsSuccess)
+        {
+            Notifications.Add("Category created","Created", NotificationLevel.Success);
+            if (res.Data is not null) CategoryState.AddOrUpdate(res.Data);
+            else
+            {
+                var all = await CategoryService.GetAllAsync();
+                if (all.IsSuccess && all.Data is not null) CategoryState.SetAll(all.Data);
+            }
+            Hide();
+        }
+        else
+        {
+            if (res.Errors != null && _editContext != null)
+            {
+                var store = new ValidationMessageStore(_editContext);
+                store.Clear();
+                foreach (var kv in res.Errors)
+                {
+                    var prop = typeof(CategoryDto).GetProperty(kv.Key, System.Reflection.BindingFlags.IgnoreCase | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    store.Add(prop != null ? new FieldIdentifier(_model, prop.Name) : new FieldIdentifier(_model, string.Empty), kv.Value);
+                }
+                _editContext.NotifyValidationStateChanged();
+            }
+            else
+            {
+                Notifications.Add(res.ErrorMessage ?? "Create failed","Error", NotificationLevel.Error);
+            }
+        }
+    }
+
+    private void SubmitClick()
+    {
+        if (_editContext == null) return;
+        if (_editContext.Validate()) _ = OnSubmit(_model);
+        else _editContext.NotifyValidationStateChanged();
+    }
+
+    private void Cancel() => Hide();
+}
+
