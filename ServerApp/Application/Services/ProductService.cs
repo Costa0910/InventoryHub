@@ -6,19 +6,21 @@ namespace ServerApp.Application.Services;
 
 public class ProductService : IProductService
 {
-    private readonly IProductRepository _productRepository;
-    private readonly ICategoryRepository _categoryRepository;
-    private readonly IMemoryCache _cache;
-
     // Cache keys
     private const string ProductsCacheKey = "products:all";
     private const string ProductByIdKey = "products:id:"; // append id
     private const string ProductsByCategoryKey = "products:category:"; // append categoryId
     private const string SearchProductsKey = "products:search:"; // append search term
+    private readonly IMemoryCache _cache;
+    private readonly ICategoryRepository _categoryRepository;
 
-    private readonly MemoryCacheEntryOptions _defaultCacheOptions = new() { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60) };
+    private readonly MemoryCacheEntryOptions _defaultCacheOptions =
+        new() { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60) };
 
-    public ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, IMemoryCache cache)
+    private readonly IProductRepository _productRepository;
+
+    public ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository,
+        IMemoryCache cache)
     {
         _productRepository = productRepository;
         _categoryRepository = categoryRepository;
@@ -27,7 +29,7 @@ public class ProductService : IProductService
 
     public async Task<Product> CreateAsync(Product product)
     {
-        ValidateProduct(product, isNew: true);
+        ValidateProduct(product, true);
 
         // Ensure category exists
         var category = await _categoryRepository.GetByIdAsync(product.CategoryId);
@@ -101,7 +103,7 @@ public class ProductService : IProductService
 
     public async Task<Product> UpdateAsync(Product product)
     {
-        ValidateProduct(product, isNew: false);
+        ValidateProduct(product, false);
 
         var existing = await _productRepository.GetByIdAsync(product.Id);
         if (existing == null)

@@ -1,7 +1,8 @@
 ﻿@inherits LayoutComponentBase
+@using ClientApp.Shared
 <div class="page">
     <div class="sidebar">
-        <NavMenu />
+        <NavMenu/>
     </div>
 
     <main>
@@ -10,7 +11,16 @@
         </div>
 
         <article class="content px-4">
-            @Body
+            <ErrorBoundary>
+                <ChildContent>
+                    @Body
+                </ChildContent>
+                <ErrorContent>
+                    <p>Sorry, an error occurred while loading this part of the app.</p>
+                </ErrorContent>
+            </ErrorBoundary>
         </article>
     </main>
 </div>
+
+<Notification/>

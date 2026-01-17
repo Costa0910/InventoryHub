@@ -12,7 +12,11 @@ public abstract class ApiServiceBase<TDto>(HttpClient http, string basePath) : I
         try
         {
             var res = await Http.GetFromJsonAsync<IEnumerable<TDto>>($"{BasePath}");
-            return new ApiResponse<IEnumerable<TDto>>(true, res ?? []);
+            return new ApiResponse<IEnumerable<TDto>>(true, res ?? Array.Empty<TDto>());
+        }
+        catch (ApiException aex)
+        {
+            return new ApiResponse<IEnumerable<TDto>>(false, null, aex.Message) { StatusCode = aex.StatusCode, Errors = aex.Errors };
         }
         catch (Exception ex)
         {
@@ -26,6 +30,10 @@ public abstract class ApiServiceBase<TDto>(HttpClient http, string basePath) : I
         {
             var res = await Http.GetFromJsonAsync<TDto>($"{BasePath}/{id}");
             return res == null ? new ApiResponse<TDto>(false, default(TDto), "Not found") : new ApiResponse<TDto>(true, res);
+        }
+        catch (ApiException aex)
+        {
+            return new ApiResponse<TDto>(false, default(TDto), aex.Message) { StatusCode = aex.StatusCode, Errors = aex.Errors };
         }
         catch (Exception ex)
         {
@@ -42,6 +50,10 @@ public abstract class ApiServiceBase<TDto>(HttpClient http, string basePath) : I
             var created = await res.Content.ReadFromJsonAsync<TDto>();
             return new ApiResponse<TDto>(true, created ?? default(TDto));
         }
+        catch (ApiException aex)
+        {
+            return new ApiResponse<TDto>(false, default(TDto), aex.Message) { StatusCode = aex.StatusCode, Errors = aex.Errors };
+        }
         catch (Exception ex)
         {
             return new ApiResponse<TDto>(false, default(TDto), ex.Message);
@@ -55,6 +67,10 @@ public abstract class ApiServiceBase<TDto>(HttpClient http, string basePath) : I
             // Assuming TDto has an Id property is not guaranteed; child services can override to implement.
             throw new NotImplementedException("UpdateAsync should be overridden when needed to provide endpoint specifics.");
         }
+        catch (ApiException aex)
+        {
+            return new ApiResponse<TDto>(false, default(TDto), aex.Message) { StatusCode = aex.StatusCode, Errors = aex.Errors };
+        }
         catch (Exception ex)
         {
             return new ApiResponse<TDto>(false, default(TDto), ex.Message);
@@ -67,6 +83,10 @@ public abstract class ApiServiceBase<TDto>(HttpClient http, string basePath) : I
         {
             var res = await Http.DeleteAsync($"{BasePath}/{id}");
             return new ApiResponse<bool>(res.IsSuccessStatusCode, res.IsSuccessStatusCode, res.IsSuccessStatusCode ? null : res.ReasonPhrase);
+        }
+        catch (ApiException aex)
+        {
+            return new ApiResponse<bool>(false, false, aex.Message) { StatusCode = aex.StatusCode, Errors = aex.Errors };
         }
         catch (Exception ex)
         {

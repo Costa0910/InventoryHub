@@ -1,10 +1,7 @@
-using System.Linq;
-using System.Collections.Generic;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Shared.DTOs;
 using ServerApp.Application.Interfaces;
 using ServerApp.Mappings;
+using Shared.DTOs;
 
 namespace ServerApp.Endpoints;
 
@@ -51,52 +48,22 @@ public static class ProductEndpoints
 
     private static async Task<IResult> CreateProduct(IProductService service, ProductDto dto)
     {
-        try
-        {
-            var entity = dto.ToEntity();
-            var created = await service.CreateAsync(entity);
-            return TypedResults.Created($"/api/products/{created.Id}", created.ToDto());
-        }
-        catch (ArgumentException ex)
-        {
-            var problem = new ValidationProblemDetails { Title = ex.Message };
-            return TypedResults.BadRequest(problem);
-        }
-        catch (InvalidOperationException)
-        {
-            return TypedResults.NotFound();
-        }
+        var entity = dto.ToEntity();
+        var created = await service.CreateAsync(entity);
+        return TypedResults.Created($"/api/products/{created.Id}", created.ToDto());
     }
 
     private static async Task<IResult> UpdateProduct(IProductService service, int id, ProductDto dto)
     {
-        try
-        {
-            if (id != dto.Id) return TypedResults.BadRequest(new ValidationProblemDetails { Title = "Id mismatch" });
-            var entity = dto.ToEntity();
-            var updated = await service.UpdateAsync(entity);
-            return TypedResults.Ok(updated.ToDto());
-        }
-        catch (KeyNotFoundException)
-        {
-            return TypedResults.NotFound();
-        }
-        catch (ArgumentException ex)
-        {
-            return TypedResults.BadRequest(new ValidationProblemDetails { Title = ex.Message });
-        }
+        if (id != dto.Id) return TypedResults.BadRequest(new ValidationProblemDetails { Title = "Id mismatch" });
+        var entity = dto.ToEntity();
+        var updated = await service.UpdateAsync(entity);
+        return TypedResults.Ok(updated.ToDto());
     }
 
     private static async Task<IResult> DeleteProduct(IProductService service, int id)
     {
-        try
-        {
-            await service.DeleteAsync(id);
-            return TypedResults.Ok();
-        }
-        catch (KeyNotFoundException)
-        {
-            return TypedResults.NotFound();
-        }
+        await service.DeleteAsync(id);
+        return TypedResults.Ok();
     }
 }

@@ -1,0 +1,67 @@
+@implements IDisposable
+
+<div class="custom-modal" style="display:@(Visible ? "block" : "none")">
+    @if (Visible)
+    {
+        <div class="custom-modal-backdrop"></div>
+    }
+
+    <div class="custom-modal-dialog @SizeClass">
+        <div class="custom-modal-content">
+            <div class="custom-modal-header">
+                <h5 class="custom-modal-title">@Title</h5>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+            </div>
+            <div class="custom-modal-body">
+                @ChildContent
+            </div>
+            @if (FooterContent is not null)
+            {
+                <div class="custom-modal-footer">
+                    @FooterContent
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+
+    public bool Visible { get; private set; }
+
+    [Parameter] public string Size { get; set; } = ""; // "sm", "lg", "xl"
+
+    private string SizeClass => Size switch
+    {
+        "sm" => "modal-sm",
+        "lg" => "modal-lg",
+        "xl" => "modal-xl",
+        _ => string.Empty
+    };
+
+    public void Show()
+    {
+        Visible = true;
+        VisibleChanged.InvokeAsync(true);
+        StateHasChanged();
+    }
+
+    public void Hide()
+    {
+        Visible = false;
+        VisibleChanged.InvokeAsync(false);
+        StateHasChanged();
+    }
+
+    private void Close() => Hide();
+
+    public void Dispose()
+    {
+        // nothing for now
+    }
+
+}

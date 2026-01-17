@@ -1,0 +1,11 @@
+/* Scoped styles for Products page */
+.table-responsive {
+    max-height: 65vh;
+    overflow: auto;
+}
+
+.toast-container .toast {
+    min-width: 240px;
+    max-width: 420px;
+}
+

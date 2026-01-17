@@ -1,5 +1,5 @@
-using Shared.DTOs;
 using ServerApp.Domain;
+using Shared.DTOs;
 
 namespace ServerApp.Mappings;
 
@@ -42,4 +42,3 @@ public static class MappingExtensions
         return new Category { Id = dto.Id, Name = dto.Name };
     }
 }
-

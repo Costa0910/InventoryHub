@@ -1,0 +1,69 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using global::Shared.DTOs
+
+<EditForm EditContext="_editContext" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator/>
+    <ValidationSummary/>
+
+    <div class="mb-3">
+        <label class="form-label">Name</label>
+        <InputText class="form-control" @bind-Value="Model.Name"/>
+        <ValidationMessage For="() => Model.Name"/>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Description</label>
+        <InputText class="form-control" @bind-Value="Model.Description"/>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label">Price</label>
+            <InputNumber class="form-control" @bind-Value="Model.Price"/>
+            <ValidationMessage For="() => Model.Price"/>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label">Stock</label>
+            <InputNumber class="form-control" @bind-Value="Model.Stock"/>
+            <ValidationMessage For="() => Model.Stock"/>
+        </div>
+    </div>
+
+    @if (ChildContent is not null)
+    {
+        @ChildContent
+    }
+</EditForm>
+
+@code {
+    [Parameter] public ProductDto Model { get; set; } = new();
+    [Parameter] public EventCallback<ProductDto> OnValidSubmit { get; set; }
+    [Parameter] public EventCallback<EditContext> OnEditContextInitialized { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private EditContext? _editContext;
+
+    // keep a reference to detect when parent passes a new model instance
+    private ProductDto? _previousModelRef;
+
+    // Recreate the EditContext whenever the Model parameter changes so parents
+    // that replace the model (as the modals do) will receive the fresh EditContext.
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ReferenceEquals(_previousModelRef, Model))
+        {
+            _previousModelRef = Model;
+            _editContext = new EditContext(Model);
+            // notify parent modal that a new EditContext is available
+            await OnEditContextInitialized.InvokeAsync(_editContext);
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (OnValidSubmit.HasDelegate)
+            await OnValidSubmit.InvokeAsync(Model);
+    }
+
+}

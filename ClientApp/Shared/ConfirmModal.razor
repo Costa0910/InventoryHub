@@ -1,0 +1,29 @@
+<Modal @ref="_modal" Title="@Title" Size="sm">
+    <ChildContent>
+        <p>@Message</p>
+    </ChildContent>
+    <FooterContent>
+        <button class="btn btn-secondary me-2" @onclick="Cancel">Cancel</button>
+        <button class="btn btn-danger" @onclick="Confirm">Delete</button>
+    </FooterContent>
+</Modal>
+
+@code {
+    private Modal? _modal;
+
+    [Parameter] public string Title { get; set; } = "Confirm";
+    [Parameter] public string Message { get; set; } = "Are you sure?";
+    [Parameter] public EventCallback<bool> OnConfirmed { get; set; }
+
+    public void Show() => _modal?.Show();
+    public void Hide() => _modal?.Hide();
+
+    private async Task Confirm()
+    {
+        Hide();
+        await OnConfirmed.InvokeAsync(true);
+    }
+
+    private void Cancel() => Hide();
+}
+

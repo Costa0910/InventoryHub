@@ -1,0 +1,36 @@
+@using global::Shared.DTOs
+
+<Modal @ref="_modal" Title="Product Details" Size="lg">
+    <ChildContent>
+        @if (Product is null)
+        {
+            <div>Loading...</div>
+        }
+        else
+        {
+            <dl class="row">
+                <dt class="col-sm-3">Id</dt>
+                <dd class="col-sm-9">@Product.Id</dd>
+                <dt class="col-sm-3">Name</dt>
+                <dd class="col-sm-9">@Product.Name</dd>
+                <dt class="col-sm-3">Description</dt>
+                <dd class="col-sm-9">@Product.Description</dd>
+                <dt class="col-sm-3">Price</dt>
+                <dd class="col-sm-9">@Product.Price.ToString("C2")</dd>
+                <dt class="col-sm-3">Stock</dt>
+                <dd class="col-sm-9">@Product.Stock</dd>
+                <dt class="col-sm-3">Category</dt>
+                <dd class="col-sm-9">@Product.CategoryName</dd>
+            </dl>
+        }
+    </ChildContent>
+</Modal>
+
+@code {
+    private Modal? _modal;
+    [Parameter] public ProductDto? Product { get; set; }
+
+    public void Show() => _modal?.Show();
+    public void Hide() => _modal?.Hide();
+}
+

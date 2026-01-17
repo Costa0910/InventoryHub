@@ -1,0 +1,92 @@
+@page "/products-demo"
+@inject ProductApiService ProductService
+@inject NotificationService Notifications
+@using ClientApp.Services
+@using global::Shared.DTOs
+
+<h3>Products Demo — Server Validation Mapping</h3>
+
+<EditForm EditContext="_editContext" OnValidSubmit="OnValidSubmit">
+    <DataAnnotationsValidator/>
+    <ValidationSummary/>
+
+    <div class="mb-3">
+        <label>Name</label>
+        <InputText class="form-control" @bind-Value="_model.Name"/>
+        <ValidationMessage For="() => _model.Name"/>
+    </div>
+
+    <div class="mb-3">
+        <label>Price</label>
+        <InputNumber class="form-control" @bind-Value="_model.Price"/>
+        <ValidationMessage For="() => _model.Price"/>
+    </div>
+
+    <div class="mb-3">
+        <label>Stock</label>
+        <InputNumber class="form-control" @bind-Value="_model.Stock"/>
+        <ValidationMessage For="() => _model.Stock"/>
+    </div>
+
+    <div class="mb-3">
+        <label>Category Id</label>
+        <InputNumber class="form-control" @bind-Value="_model.CategoryId"/>
+        <ValidationMessage For="() => _model.CategoryId"/>
+    </div>
+
+    <button class="btn btn-primary" type="submit">Create</button>
+</EditForm>
+
+@if (_result is not null)
+{
+    <div class="mt-3">
+        <h5>Result</h5>
+        <pre>@(System.Text.Json.JsonSerializer.Serialize(_result, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }))</pre>
+    </div>
+}
+
+@code {
+    private ProductDto _model = new();
+    private EditContext? _editContext;
+    private ValidationMessageStore? _messageStore;
+
+    private ApiResponse<ProductDto>? _result;
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(_model);
+        _messageStore = new ValidationMessageStore(_editContext);
+    }
+
+    private async Task OnValidSubmit()
+    {
+        // Clear previous server messages
+        _messageStore?.Clear();
+        _editContext?.NotifyValidationStateChanged();
+
+        _result = await ProductService.CreateAsync(_model);
+
+        if (!_result.IsSuccess)
+        {
+            if (_result.Errors != null && _editContext != null && _messageStore != null)
+            {
+                foreach (var kv in _result.Errors)
+                {
+                    // Map server error keys to field names (assumes server uses same names)
+                    var fieldIdentifier = new FieldIdentifier(_model, kv.Key);
+                    _messageStore.Add(fieldIdentifier, kv.Value);
+                }
+
+                _editContext.NotifyValidationStateChanged();
+            }
+
+            // Also show toast using Notifications (already done by ApiErrorHandler, but show explicit)
+            Notifications.Add(_result.ErrorMessage ?? "Server validation failed", "Validation", NotificationLevel.Warning, 8000);
+        }
+        else
+        {
+            Notifications.Add("Product created", "Success", NotificationLevel.Success, 3000);
+        }
+    }
+
+}

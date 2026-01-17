@@ -32,6 +32,19 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 
+// Add CORS
+var allowedOrigins = builder.Configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>() ?? [];
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+
 var app = builder.Build();
 
 // Use centralized global exception handler middleware
@@ -42,6 +55,9 @@ if (!app.Environment.IsEnvironment("Testing"))
 {
     await DbSeeder.SeedAsync(app.Services);
 }
+
+// Enable CORS
+app.UseCors("AllowFrontend");
 
 // Map endpoint groups
 app.MapProductEndpoints();

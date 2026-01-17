@@ -1,0 +1,68 @@
+.custom-modal {
+    position: fixed;
+    inset: 0; /* top/right/bottom/left: 0 */
+    display: block; /* ensure container covers viewport */
+    z-index: 99990; /* container base */
+    pointer-events: none; /* let backdrop/dialog handle events */
+}
+
+.custom-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99995; /* backdrop below dialog */
+    pointer-events: auto; /* block background interactions */
+}
+
+.custom-modal-dialog {
+    position: fixed; /* take dialog out of flow so it's not affected by parent layout */
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto; /* allow clicks inside dialog */
+    max-width: 720px;
+    width: calc(100% - 2rem);
+    margin: 0; /* remove margin that pushes it left */
+    z-index: 100000; /* ensure dialog is above backdrop and any headers */
+}
+
+.custom-modal-dialog.modal-sm {
+    max-width: 360px;
+}
+
+.custom-modal-dialog.modal-lg {
+    max-width: 960px;
+}
+
+.custom-modal-dialog.modal-xl {
+    max-width: 1140px;
+}
+
+.custom-modal-content {
+    background: #fff;
+    border-radius: .375rem;
+    overflow: hidden;
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
+    display: flex;
+    flex-direction: column;
+}
+
+.custom-modal-header {
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.custom-modal-body {
+    padding: 1rem;
+}
+
+.custom-modal-footer {
+    padding: .75rem 1rem;
+    border-top: 1px solid #e9ecef;
+    text-align: right;
+}
+
+/* end of modal styles */

@@ -1,0 +1,43 @@
+@inject NotificationService Notifications
+@using ClientApp.Services
+@implements IDisposable
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1200;">
+    @foreach (var item in Notifications.Items)
+    {
+        <div class="toast show align-items-center text-bg-light border-0 mb-2" role="alert" aria-live="assertive"
+             aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    @if (!string.IsNullOrWhiteSpace(item.Title))
+                    {
+                        <strong>@item.Title</strong>
+                    }
+                    <div>@item.Message</div>
+                </div>
+                <button type="button" class="btn-close me-2 m-auto" aria-label="Close"
+                        @onclick="() => Dismiss(item.Id)"></button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+
+    protected override void OnInitialized()
+    {
+        Notifications.OnChange += StateHasChanged;
+        base.OnInitialized();
+    }
+
+    private void Dismiss(string id)
+    {
+        Notifications.Dismiss(id);
+    }
+
+    public void Dispose()
+    {
+        Notifications.OnChange -= StateHasChanged;
+    }
+
+}

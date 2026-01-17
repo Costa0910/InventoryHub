@@ -62,4 +62,3 @@ public static class GlobalExceptionMiddlewareExtensions
         return app.UseMiddleware<GlobalExceptionMiddleware>();
     }
 }
-
