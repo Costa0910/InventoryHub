@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using ServerApp.Application.Interfaces;
 using ServerApp.Application.Services;
+using ServerApp.Endpoints;
 using ServerApp.Infrastructure.Persistence;
 using ServerApp.Infrastructure.Repositories;
+using ServerApp.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,8 +30,15 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 var app = builder.Build();
 
+// Use centralized global exception handler middleware
+app.UseGlobalExceptionHandler();
+
 // Seed initial data
 await DbSeeder.SeedAsync(app.Services);
+
+// Map endpoint groups
+app.MapProductEndpoints();
+app.MapCategoryEndpoints();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -39,28 +48,4 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
-app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+await app.RunAsync();

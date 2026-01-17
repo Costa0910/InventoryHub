@@ -57,7 +57,7 @@ public class ProductService(IProductRepository productRepository, ICategoryRepos
         var existing = await productRepository.GetByIdAsync(product.Id);
         if (existing == null)
             throw new KeyNotFoundException("Product not found");
-        
+
         // Ensure category exists
         var category = await categoryRepository.GetByIdAsync(product.CategoryId);
         if (category == null)

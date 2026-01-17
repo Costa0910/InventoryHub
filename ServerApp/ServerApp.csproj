@@ -24,9 +24,7 @@
   <ItemGroup>
     <Folder Include="Application\" />
     <Folder Include="Domain\" />
-    <Folder Include="Endpoints\" />
     <Folder Include="Infrastructure\" />
-    <Folder Include="Mappings\" />
   </ItemGroup>
 
 </Project>
