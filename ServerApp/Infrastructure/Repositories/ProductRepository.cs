@@ -9,7 +9,7 @@ public class ProductRepository(InventoryDbContext context) : GenericRepository<P
 {
     public async Task<IEnumerable<Product>> GetByCategoryIdAsync(int categoryId)
     {
-        return await _dbSet.Where(p => p.CategoryId == categoryId).Include(p => p.Category).ToListAsync();
+        return await _dbSet.AsNoTracking().Where(p => p.CategoryId == categoryId).Include(p => p.Category).ToListAsync();
     }
 
     public async Task<IEnumerable<Product>> SearchByNameAsync(string name)
@@ -17,9 +17,9 @@ public class ProductRepository(InventoryDbContext context) : GenericRepository<P
         if (string.IsNullOrWhiteSpace(name))
             return await GetAllAsync();
 
-        return await _dbSet.Where(p => EF.Functions.Like(p.Name, $"%{name}%"))
+        return await _dbSet.AsNoTracking()
+                           .Where(p => EF.Functions.Like(p.Name, $"%{name}%"))
                            .Include(p => p.Category)
                            .ToListAsync();
     }
 }
-

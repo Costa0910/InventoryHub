@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using ServerApp.Application.Services;
 using ServerApp.Domain;
 using ServerApp.Infrastructure.Repositories;
@@ -16,7 +17,8 @@ public class ProductServiceTests
 
         var productRepo = new ProductRepository(context);
         var categoryRepo = new CategoryRepository(context);
-        var service = new ProductService(productRepo, categoryRepo);
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = new ProductService(productRepo, categoryRepo, cache);
 
         var product = new Product { Name = "Gadget", Price = 9.99M, Stock = 10, CategoryId = 999 };
         Assert.ThrowsAsync<InvalidOperationException>(async () => await service.CreateAsync(product));
@@ -35,7 +37,8 @@ public class ProductServiceTests
         await categoryRepo.AddAsync(cat);
         await categoryRepo.SaveChangesAsync();
 
-        var service = new ProductService(productRepo, categoryRepo);
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = new ProductService(productRepo, categoryRepo, cache);
         var product = new Product { Name = "Gizmo", Price = 19.99M, Stock = 5, CategoryId = cat.Id };
         var created = await service.CreateAsync(product);
 
@@ -59,7 +62,8 @@ public class ProductServiceTests
         await categoryRepo.AddAsync(cat);
         await categoryRepo.SaveChangesAsync();
 
-        var service = new ProductService(productRepo, categoryRepo);
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = new ProductService(productRepo, categoryRepo, cache);
         var negativePrice = new Product { Name = "Bad", Price = -1M, Stock = 1, CategoryId = cat.Id };
         Assert.ThrowsAsync<ArgumentException>(async () => await service.CreateAsync(negativePrice));
 

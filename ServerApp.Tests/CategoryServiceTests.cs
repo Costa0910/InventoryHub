@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using ServerApp.Application.Services;
 using ServerApp.Domain;
 using ServerApp.Infrastructure.Repositories;
@@ -15,9 +16,10 @@ public class CategoryServiceTests
         await using var connection = tuple.connection;
 
         var repo = new CategoryRepository(context);
-        var service = new CategoryService(repo);
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = new CategoryService(repo, cache);
 
-        var category = new ServerApp.Domain.Category { Name = "Toys" };
+        var category = new Category { Name = "Toys" };
         var created = await service.CreateAsync(category);
 
         using (Assert.EnterMultipleScope())
@@ -35,11 +37,11 @@ public class CategoryServiceTests
         await using var connection = tuple.connection;
 
         var repo = new CategoryRepository(context);
-        var service = new CategoryService(repo);
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = new CategoryService(repo, cache);
 
         var category = new Category { Name = "Toys" };
         await service.CreateAsync(category);
-
         var duplicate = new Category { Name = "Toys" };
         Assert.ThrowsAsync<InvalidOperationException>(async () => await service.CreateAsync(duplicate));
     }

@@ -13,6 +13,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
 
+// Add in-memory caching
+builder.Services.AddMemoryCache();
+
 // Register DbContext and repositories
 var connectionString = builder.Configuration.GetConnectionString("Inventory")
                        ?? $"Data Source={Path.Combine(builder.Environment.ContentRootPath, "inventory.db")}";

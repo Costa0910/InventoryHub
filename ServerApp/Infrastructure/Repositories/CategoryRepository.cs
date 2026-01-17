@@ -12,6 +12,6 @@ public class CategoryRepository(InventoryDbContext context) : GenericRepository<
         if (string.IsNullOrWhiteSpace(name))
             return null;
 
-        return await _dbSet.FirstOrDefaultAsync(c => c.Name == name);
+        return await _dbSet.AsNoTracking().FirstOrDefaultAsync(c => c.Name == name);
     }
 }

@@ -1,10 +1,17 @@
+using Microsoft.Extensions.Caching.Memory;
 using ServerApp.Application.Interfaces;
 using ServerApp.Domain;
 
 namespace ServerApp.Application.Services;
 
-public class CategoryService(ICategoryRepository categoryRepository) : ICategoryService
+public class CategoryService(ICategoryRepository categoryRepository, IMemoryCache cache) : ICategoryService
 {
+    private const string CategoriesCacheKey = "categories:all";
+    private const string CategoryByIdKey = "categories:id:";
+    private const string CategoryByNameKey = "categories:name:";
+
+    private readonly MemoryCacheEntryOptions _defaultCacheOptions = new() { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60) };
+
     public async Task<Category> CreateAsync(Category category)
     {
         ValidateCategory(category, isNew: true);
@@ -16,6 +23,10 @@ public class CategoryService(ICategoryRepository categoryRepository) : ICategory
 
         await categoryRepository.AddAsync(category);
         await categoryRepository.SaveChangesAsync();
+
+        cache.Remove(CategoriesCacheKey);
+        cache.Remove(CategoryByNameKey + category.Name);
+
         return category;
     }
 
@@ -27,21 +38,39 @@ public class CategoryService(ICategoryRepository categoryRepository) : ICategory
 
         categoryRepository.Delete(existing);
         await categoryRepository.SaveChangesAsync();
+
+        cache.Remove(CategoriesCacheKey);
+        cache.Remove(CategoryByIdKey + id);
+        cache.Remove(CategoryByNameKey + existing.Name);
     }
 
     public async Task<IEnumerable<Category>> GetAllAsync()
     {
-        return await categoryRepository.GetAllAsync();
+        if (cache.TryGetValue(CategoriesCacheKey, out IEnumerable<Category>? cachedValue)) return cachedValue!;
+        cachedValue = await categoryRepository.GetAllAsync();
+        var categories = cachedValue as Category[] ?? cachedValue.ToArray();
+        cache.Set(CategoriesCacheKey,categories, _defaultCacheOptions);
+        return categories!;
     }
 
     public async Task<Category?> GetByIdAsync(int id)
     {
-        return await categoryRepository.GetByIdAsync(id);
+        var key = CategoryByIdKey + id;
+        if (cache.TryGetValue(key, out Category? cached)) return cached;
+        cached = await categoryRepository.GetByIdAsync(id);
+        if (cached != null)
+            cache.Set(key, cached, _defaultCacheOptions);
+        return cached;
     }
 
     public async Task<Category?> GetByNameAsync(string name)
     {
-        return await categoryRepository.GetByNameAsync(name);
+        var key = CategoryByNameKey + name;
+        if (cache.TryGetValue(key, out Category? cached)) return cached;
+        cached = await categoryRepository.GetByNameAsync(name);
+        if (cached != null)
+            cache.Set(key, cached, _defaultCacheOptions);
+        return cached;
     }
 
     public async Task<Category> UpdateAsync(Category category)
@@ -60,6 +89,11 @@ public class CategoryService(ICategoryRepository categoryRepository) : ICategory
         existing.Name = category.Name;
         categoryRepository.Update(existing);
         await categoryRepository.SaveChangesAsync();
+
+        cache.Remove(CategoriesCacheKey);
+        cache.Remove(CategoryByIdKey + category.Id);
+        cache.Remove(CategoryByNameKey + category.Name);
+
         return existing;
     }
 
