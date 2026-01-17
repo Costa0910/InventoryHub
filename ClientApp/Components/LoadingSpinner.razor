@@ -1,0 +1,15 @@
+<div class="d-inline-flex align-items-center" style="width: inherit;">
+    <div class="spinner-border @SpinnerSizeClass" role="status" aria-hidden="true"></div>
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <span class="ms-2">@Message</span>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public string Size { get; set; } = "sm"; // "sm" or "md" or "lg"
+
+    private string SpinnerSizeClass => Size == "sm" ? "spinner-border-sm" : string.Empty;
+}
+

@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Web;
+using Shared.DTOs;
 
 namespace ClientApp.Services;
 
@@ -21,6 +23,35 @@ public abstract class ApiServiceBase<TDto>(HttpClient http, string basePath) : I
         catch (Exception ex)
         {
             return new ApiResponse<IEnumerable<TDto>>(false, null, ex.Message);
+        }
+    }
+
+    public virtual async Task<ApiResponse<PaginatedResponse<TDto>>> GetPagedAsync(int pageNumber, int pageSize, IDictionary<string, string?>? filters = null)
+    {
+        try
+        {
+            var qb = HttpUtility.ParseQueryString(string.Empty);
+            qb["pageNumber"] = pageNumber.ToString();
+            qb["pageSize"] = pageSize.ToString();
+            if (filters != null)
+            {
+                foreach (var kv in filters)
+                {
+                    if (!string.IsNullOrEmpty(kv.Value)) qb[kv.Key] = kv.Value;
+                }
+            }
+
+            var url = $"{BasePath}?{qb}";
+            var res = await Http.GetFromJsonAsync<PaginatedResponse<TDto>>(url);
+            return new ApiResponse<PaginatedResponse<TDto>>(true, res ?? new PaginatedResponse<TDto>());
+        }
+        catch (ApiException aex)
+        {
+            return new ApiResponse<PaginatedResponse<TDto>>(false, null, aex.Message) { StatusCode = aex.StatusCode, Errors = aex.Errors };
+        }
+        catch (Exception ex)
+        {
+            return new ApiResponse<PaginatedResponse<TDto>>(false, null, ex.Message);
         }
     }
 

@@ -11,9 +11,9 @@ public static class CategoryEndpoints
     {
         var group = routes.MapGroup("/api/categories").WithTags("Categories");
 
-        group.MapGet("/", GetAll)
+        group.MapGet("/", GetCategories)
             .WithName("GetCategories")
-            .WithSummary("Get all categories");
+            .WithSummary("Get categories (supports optional paging)");
 
         group.MapGet("/{id:int}", GetById)
             .WithName("GetCategoryById")
@@ -34,10 +34,21 @@ public static class CategoryEndpoints
         return group;
     }
 
-    private static async Task<IResult> GetAll(ICategoryService service)
+    private static async Task<IResult> GetCategories(ICategoryService service, int? pageNumber = null, int? pageSize = null, string? search = null)
     {
-        var categories = (await service.GetAllAsync()).Select(c => c.ToDto()).ToArray();
-        return TypedResults.Ok(categories);
+        if (!pageNumber.HasValue || !pageSize.HasValue)
+        {
+            var categories = (await service.GetAllAsync()).Select(c => c.ToDto()).ToArray();
+            return TypedResults.Ok(categories);
+        }
+
+        var pn = Math.Max(1, pageNumber.Value);
+        var ps = Math.Max(1, pageSize.Value);
+
+        var (items, total) = await service.GetPagedAsync(pn, ps, search);
+        var dtoItems = items.Select(c => c.ToDto());
+        var paged = new PaginatedResponse<CategoryDto> { Items = dtoItems, TotalCount = total };
+        return TypedResults.Ok(paged);
     }
 
     private static async Task<IResult> GetById(ICategoryService service, int id)

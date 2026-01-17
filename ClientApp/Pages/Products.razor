@@ -3,21 +3,41 @@
 @using global::Shared.DTOs
 @inject ProductApiService ProductService
 @inject NotificationService Notifications
-@inject IJSRuntime Js
 @inject ProductState ProductState
+@inject CategoryApiService CategoryService
+@inject CategoryState CategoryState
+@inject NavigationManager NavManager
+@using System.Web
 @implements IDisposable
 
 <h3>Products</h3>
 
 <div class="d-flex mb-3 gap-2">
-    <input class="form-control me-2" placeholder="Search by name or description" @bind="_search" @bind:event="oninput"/>
+    <input class="form-control me-2" placeholder="Search by name or description" value="@_search" @oninput="OnSearchInput" />
+    <div class="position-relative">
+        <InputSelect class="form-select me-2" @bind-Value="SelectedCategoryId" disabled="@_selectLoading">
+            <option value="0">All categories</option>
+            @foreach (var c in _categories)
+            {
+                <option value="@c.Id">@c.Name</option>
+            }
+        </InputSelect>
+        @if (_selectLoading)
+        {
+            <div class="position-absolute top-50 end-0 translate-middle-y me-3">
+                <LoadingSpinner Size="sm" />
+            </div>
+        }
+    </div>
     <button class="btn btn-outline-secondary" @onclick="Refresh">Refresh</button>
     <button class="btn btn-primary ms-auto" @onclick="() => _createModal?.Show()">Create Product</button>
 </div>
 
 @if (_loading)
 {
-    <div>Loading...</div>
+    <div class="display-flex justify-content-center align-items-center">
+        <LoadingSpinner Size="md" Message="Loading products..."/>
+    </div>
 }
 else
 {
@@ -35,26 +55,57 @@ else
             </tr>
             </thead>
             <tbody>
-            @foreach (var p in FilteredProducts)
+            @if (!_products.Any())
             {
                 <tr>
-                    <td>@p.Id</td>
-                    <td>@p.Name</td>
-                    <td>@p.Description</td>
-                    <td>@p.Price.ToString("C2")</td>
-                    <td>@p.Stock</td>
-                    <td>@p.CategoryName</td>
-                    <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ViewDetails(p)">View
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => EditProduct(p)">Edit
-                        </button>
-                        <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDeleteModal(p.Id)">Delete</button>
-                    </td>
+                    <td colspan="7" class="text-center py-4 text-muted">No products found. Try changing the search or category, or click Refresh.</td>
                 </tr>
+            }
+            else
+            {
+                @foreach (var p in _products)
+                {
+                    <tr>
+                        <td>@p.Id</td>
+                        <td>@p.Name</td>
+                        <td>@p.Description</td>
+                        <td>@p.Price.ToString("C2")</td>
+                        <td>@p.Stock</td>
+                        <td>@p.CategoryName</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ViewDetails(p)">View
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => EditProduct(p)">Edit
+                            </button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDeleteModal(p.Id)">Delete</button>
+                        </td>
+                    </tr>
+                }
             }
             </tbody>
         </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-2">
+        <div>Showing @((_pageNumber - 1) * _pageSize + 1) - @Math.Min(_pageNumber * _pageSize, _totalCount) of @_totalCount</div>
+        <nav>
+            <ul class="pagination mb-0">
+                <li class="page-item @( _pageNumber == 1 ? "disabled" : "" )">
+                    <button class="page-link" @onclick="() => LoadPageAsync(_pageNumber - 1)">Previous</button>
+                </li>
+
+                @foreach (var p in VisiblePageNumbers())
+                {
+                    <li class="page-item @(p == _pageNumber ? "active" : "")">
+                        <button class="page-link" @onclick="() => LoadPageAsync(p)">@p</button>
+                    </li>
+                }
+
+                <li class="page-item @( _pageNumber >= TotalPages ? "disabled" : "" )">
+                    <button class="page-link" @onclick="() => LoadPageAsync(_pageNumber + 1)">Next</button>
+                </li>
+            </ul>
+        </nav>
     </div>
 }
 
@@ -69,10 +120,29 @@ else
     private string _search = string.Empty;
     private bool _loading = true;
 
-    private IEnumerable<ProductDto> FilteredProducts => string.IsNullOrWhiteSpace(_search)
-        ? _products
-        : _products.Where(p => (p.Name ?? string.Empty).Contains(_search, StringComparison.OrdinalIgnoreCase)
-                               || (p.Description ?? string.Empty).Contains(_search, StringComparison.OrdinalIgnoreCase));
+    private List<CategoryDto> _categories = [];
+    private int _selectedCategoryId;
+
+    // pagination state
+    private int _pageNumber = 1;
+    private int _pageSize = 10;
+    private int _totalCount;
+
+    // debounce helper for search input
+    private CancellationTokenSource? _searchCts;
+    private readonly int _searchDebounceMs = 350;
+
+    private int TotalPages => _pageSize == 0 ? 0 : (int)Math.Ceiling((double)_totalCount / _pageSize);
+
+    private IEnumerable<int> VisiblePageNumbers()
+    {
+        var total = TotalPages;
+        if (total <= 10) return Enumerable.Range(1, total);
+        var start = Math.Max(1, _pageNumber - 4);
+        var end = Math.Min(total, start + 9);
+        if (end - start < 9) start = Math.Max(1, end - 9);
+        return Enumerable.Range(start, end - start + 1);
+    }
 
     private ConfirmModal? _confirmModal;
     private ProductDetailsModal? _detailsModal;
@@ -80,27 +150,63 @@ else
     private CreateProductModal? _createModal;
     private ProductDto? _selected;
     private int _pendingDeleteId;
+    private bool _selectLoading = false;
 
     protected override async Task OnInitializedAsync()
     {
-        ProductState.OnChange += OnStateChanged;
-        await LoadAsync();
+        ProductState.OnChange += OnProductStateChanged;
+        CategoryState.OnChange += OnCategoryStateChanged;
+
+        // read query params from URL and set initial state
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        var qs = HttpUtility.ParseQueryString(uri.Query);
+        if (int.TryParse(qs.Get("page"), out var p)) _pageNumber = Math.Max(1, p);
+        if (int.TryParse(qs.Get("category"), out var cId)) _selectedCategoryId = cId;
+        var q = qs.Get("q");
+        if (!string.IsNullOrEmpty(q)) _search = q;
+
+        await LoadCategoriesAsync();
+        await LoadPageAsync(_pageNumber);
     }
 
     public void Dispose()
     {
-        ProductState.OnChange -= OnStateChanged;
+        ProductState.OnChange -= OnProductStateChanged;
+        CategoryState.OnChange -= OnCategoryStateChanged;
+        // cancel any pending debounce
+        try
+        {
+            _searchCts?.Cancel();
+            _searchCts?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+        }
     }
 
-    private async Task LoadAsync()
+    private async Task LoadPageAsync(int pageNumber)
     {
+        if (pageNumber < 1) pageNumber = 1;
         _loading = true;
+        _selectLoading = true;
         StateHasChanged();
-        var res = await ProductService.GetAllAsync();
+
+        var res = await ProductService.GetPagedAsync(pageNumber, _pageSize, _search, _selectedCategoryId == 0 ? null : _selectedCategoryId);
         if (res is { IsSuccess: true, Data: not null })
         {
-            _products = res.Data.ToList();
-            ProductState.SetAll(_products);
+            _products = res.Data.Items.ToList();
+            _totalCount = res.Data.TotalCount;
+            _pageNumber = pageNumber;
+            ProductState.SetAll(_products); // keep existing state usage for other components
+
+            // update URL query string
+            var qb = HttpUtility.ParseQueryString(string.Empty);
+            qb.Set("page", _pageNumber.ToString());
+            if (_selectedCategoryId != 0) qb.Set("category", _selectedCategoryId.ToString());
+            if (!string.IsNullOrWhiteSpace(_search)) qb.Set("q", _search);
+            var newUri = NavManager.Uri.Split('?')[0] + "?" + qb.ToString();
+            NavManager.NavigateTo(newUri, replace: true);
         }
         else
         {
@@ -108,12 +214,69 @@ else
         }
 
         _loading = false;
+        _selectLoading = false;
         StateHasChanged();
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        // use cached categories if available
+        if (CategoryState.Items.Any())
+        {
+            _categories = CategoryState.Items.ToList();
+            return;
+        }
+
+        var res = await CategoryService.GetAllAsync();
+        if (res is { IsSuccess: true, Data: not null })
+        {
+            _categories = res.Data.ToList();
+            CategoryState.SetAll(_categories);
+        }
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        _pageNumber = 1;
+
+        // cancel previous debounce
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        // fire-and-forget debounce task
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(_searchDebounceMs, token);
+                if (!token.IsCancellationRequested)
+                    await InvokeAsync(() => LoadPageAsync(1));
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { Console.Error.WriteLine(ex); }
+        }, token);
+    }
+
+    // property used for two-way binding; scheduling a page load when changed
+    private int SelectedCategoryId
+    {
+        get => _selectedCategoryId;
+        set
+        {
+            if (_selectedCategoryId == value) return;
+            _selectedCategoryId = value;
+            _pageNumber = 1;
+            _ = InvokeAsync(() => LoadPageAsync(1));
+        }
     }
 
     private async Task Refresh()
     {
-        await LoadAsync();
+        await LoadPageAsync(_pageNumber);
+        await LoadCategoriesAsync();
     }
 
     private void ViewDetails(ProductDto p)
@@ -140,6 +303,8 @@ else
         if (res.IsSuccess)
         {
             Notifications.Add("Product deleted", "Deleted", NotificationLevel.Success, 4000);
+            // reload current page to reflect deletion
+            await LoadPageAsync(_pageNumber);
             ProductState.Remove(_pendingDeleteId);
         }
         else
@@ -148,10 +313,16 @@ else
         }
     }
 
-    private void OnStateChanged()
+    private void OnProductStateChanged()
     {
+        // keep local list in sync if other parts updated the state
         _products = ProductState.Items.ToList();
         StateHasChanged();
     }
-
+    
+    private void OnCategoryStateChanged()
+    {
+        _categories = CategoryState.Items.ToList();
+        StateHasChanged();
+    }
 }

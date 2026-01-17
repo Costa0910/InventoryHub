@@ -4,18 +4,31 @@
 @inject CategoryApiService CategoryService
 @inject NotificationService Notifications
 @inject CategoryState CategoryState
+@inject NavigationManager NavManager
+@using System.Web
+@using ClientApp.Components
 
 <h3>Categories</h3>
 
-<div class="d-flex mb-3 gap-2">
-    <input class="form-control me-2" placeholder="Search by name" @bind="_search" @bind:event="oninput" />
+<div class="d-flex mb-3 gap-2 align-items-center">
+    <div class="position-relative flex-grow-1">
+        <input class="form-control me-2" placeholder="Search by name" value="@_search" @oninput="OnSearchInput" />
+        @if (_selectLoading)
+        {
+            <div class="position-absolute top-50 end-0 translate-middle-y me-3">
+                <LoadingSpinner Size="sm" />
+            </div>
+        }
+    </div>
     <button class="btn btn-outline-secondary" @onclick="Refresh">Refresh</button>
     <button class="btn btn-primary ms-auto" @onclick="() => _createModal?.Show()">Create Category</button>
 </div>
 
 @if (_loading)
 {
-    <div>Loading...</div>
+    <div class="position-absolute top-50 end-0 translate-middle-y me-3">
+        <LoadingSpinner Size="md" Message="Loading categories..." />
+    </div>
 }
 else
 {
@@ -29,19 +42,50 @@ else
                 </tr>
             </thead>
             <tbody>
-                @foreach (var c in FilteredCategories)
+                @if (_categories == null || !_categories.Any())
                 {
                     <tr>
-                        <td>@c.Id</td>
-                        <td>@c.Name</td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => EditCategory(c)">Edit</button>
-                            <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDeleteModal(c.Id)">Delete</button>
-                        </td>
+                        <td colspan="3" class="text-center py-4 text-muted">No categories found. Try changing the search or click Refresh.</td>
                     </tr>
+                }
+                else
+                {
+                    @foreach (var c in _categories)
+                    {
+                        <tr>
+                            <td>@c.Id</td>
+                            <td>@c.Name</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => EditCategory(c)">Edit</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDeleteModal(c.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
                 }
             </tbody>
         </table>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-2">
+        <div>Showing @((_pageNumber - 1) * _pageSize + 1) - @Math.Min(_pageNumber * _pageSize, _totalCount) of @_totalCount</div>
+        <nav>
+            <ul class="pagination mb-0">
+                <li class="page-item @( _pageNumber == 1 ? "disabled" : "" )">
+                    <button class="page-link" @onclick="() => LoadPageAsync(_pageNumber - 1)">Previous</button>
+                </li>
+
+                @foreach (var p in VisiblePageNumbers())
+                {
+                    <li class="page-item @(p == _pageNumber ? "active" : "")">
+                        <button class="page-link" @onclick="() => LoadPageAsync(p)">@p</button>
+                    </li>
+                }
+
+                <li class="page-item @( _pageNumber >= TotalPages ? "disabled" : "" )">
+                    <button class="page-link" @onclick="() => LoadPageAsync(_pageNumber + 1)">Next</button>
+                </li>
+            </ul>
+        </nav>
     </div>
 }
 
@@ -54,9 +98,29 @@ else
     private string _search = string.Empty;
     private bool _loading = true;
 
-    private IEnumerable<CategoryDto> FilteredCategories => string.IsNullOrWhiteSpace(_search)
-        ? _categories
-        : _categories.Where(p => p.Name.Contains(_search, StringComparison.OrdinalIgnoreCase));
+    // pagination state
+    private int _pageNumber = 1;
+    private int _pageSize = 10;
+    private int _totalCount;
+
+    // debounce helper for search input
+    private CancellationTokenSource? _searchCts;
+    private readonly int _searchDebounceMs = 350;
+
+    // spinner flag for the search input
+    private bool _selectLoading = false;
+
+    private int TotalPages => _pageSize == 0 ? 0 : (int)Math.Ceiling((double)_totalCount / _pageSize);
+
+    private IEnumerable<int> VisiblePageNumbers()
+    {
+        var total = TotalPages;
+        if (total <= 10) return Enumerable.Range(1, total);
+        var start = Math.Max(1, _pageNumber - 4);
+        var end = Math.Min(total, start + 9);
+        if (end - start < 9) start = Math.Max(1, end - 9);
+        return Enumerable.Range(start, end - start + 1);
+    }
 
     private ConfirmModal? _confirmModal;
     private EditCategoryModal? _editModal;
@@ -66,28 +130,91 @@ else
     protected override async Task OnInitializedAsync()
     {
         CategoryState.OnChange += OnStateChanged;
-        await LoadAsync();
+
+        // read query params from URL and set initial state
+        var uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        var qs = HttpUtility.ParseQueryString(uri.Query);
+        if (int.TryParse(qs.Get("page"), out var p)) _pageNumber = Math.Max(1, p);
+        var q = qs.Get("q");
+        if (!string.IsNullOrEmpty(q)) _search = q;
+
+        await LoadPageAsync(_pageNumber);
     }
 
-    private async Task LoadAsync()
+    public void Dispose()
     {
+        CategoryState.OnChange -= OnStateChanged;
+        try
+        {
+            _searchCts?.Cancel();
+            _searchCts?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+        }
+    }
+
+    private async Task LoadPageAsync(int pageNumber)
+    {
+        if (pageNumber < 1) pageNumber = 1;
         _loading = true;
+        _selectLoading = true;
         StateHasChanged();
-        var res = await CategoryService.GetAllAsync();
+
+        var res = await CategoryService.GetPagedAsync(pageNumber, _pageSize, _search);
         if (res is { IsSuccess: true, Data: not null })
         {
-            _categories = res.Data.ToList();
-            CategoryState.SetAll(_categories);
+            _categories = res.Data.Items.ToList();
+            _totalCount = res.Data.TotalCount;
+            _pageNumber = pageNumber;
+            CategoryState.SetAll(_categories); // keep existing state usage
+
+            // update URL query string
+            var qb = HttpUtility.ParseQueryString(string.Empty);
+            qb.Set("page", _pageNumber.ToString());
+            if (!string.IsNullOrWhiteSpace(_search)) qb.Set("q", _search);
+            var newUri = NavManager.Uri.Split('?')[0] + "?" + qb.ToString();
+            NavManager.NavigateTo(newUri, replace: true);
         }
         else
         {
             Notifications.Add(res.ErrorMessage ?? "Failed to load categories", "Error", NotificationLevel.Error, 8000);
         }
+
         _loading = false;
+        _selectLoading = false;
         StateHasChanged();
     }
 
-    private async Task Refresh() => await LoadAsync();
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        _pageNumber = 1;
+
+        // cancel previous debounce
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(_searchDebounceMs, token);
+                if (!token.IsCancellationRequested)
+                    await InvokeAsync(() => LoadPageAsync(1));
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { Console.Error.WriteLine(ex); }
+        }, token);
+    }
+
+    private async Task Refresh()
+    {
+        await LoadPageAsync(_pageNumber);
+    }
 
     private void EditCategory(CategoryDto c) => _editModal?.Show(c);
 
@@ -104,6 +231,8 @@ else
         if (res.IsSuccess)
         {
             Notifications.Add("Category deleted", "Deleted", NotificationLevel.Success, 4000);
+            // reload current page to reflect deletion
+            await LoadPageAsync(_pageNumber);
             CategoryState.Remove(_pendingDeleteId);
         }
         else
@@ -118,3 +247,4 @@ else
         StateHasChanged();
     }
 }
+

@@ -10,5 +10,5 @@ public interface ICategoryService
     Task<Category> UpdateAsync(Category category);
     Task DeleteAsync(int id);
     Task<Category?> GetByNameAsync(string name);
+    Task<(IEnumerable<Category> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, string? search = null);
 }
-

@@ -50,7 +50,7 @@ public class CategoryService(ICategoryRepository categoryRepository, IMemoryCach
         cachedValue = await categoryRepository.GetAllAsync();
         var categories = cachedValue as Category[] ?? cachedValue.ToArray();
         cache.Set(CategoriesCacheKey,categories, _defaultCacheOptions);
-        return categories!;
+        return categories;
     }
 
     public async Task<Category?> GetByIdAsync(int id)
@@ -97,6 +97,12 @@ public class CategoryService(ICategoryRepository categoryRepository, IMemoryCach
         return existing;
     }
 
+    public async Task<(IEnumerable<Category> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, string? search = null)
+    {
+        // Delegate to repository for paged results; do not cache paged responses.
+        return await categoryRepository.GetPagedAsync(pageNumber, pageSize, search);
+    }
+
     private void ValidateCategory(Category category, bool isNew)
     {
         ArgumentNullException.ThrowIfNull(category);
@@ -104,4 +110,3 @@ public class CategoryService(ICategoryRepository categoryRepository, IMemoryCach
         if (!isNew && category.Id <= 0) throw new ArgumentException("Invalid category id");
     }
 }
-

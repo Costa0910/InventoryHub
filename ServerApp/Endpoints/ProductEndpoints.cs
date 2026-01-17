@@ -11,9 +11,9 @@ public static class ProductEndpoints
     {
         var group = routes.MapGroup("/api/products").WithTags("Products");
 
-        group.MapGet("/", GetAllProducts)
+        group.MapGet("/", GetProducts)
             .WithName("GetProducts")
-            .WithSummary("Get all products");
+            .WithSummary("Get products (supports optional paging)");
 
         group.MapGet("/{id:int}", GetProductById)
             .WithName("GetProductById")
@@ -34,10 +34,23 @@ public static class ProductEndpoints
         return group;
     }
 
-    private static async Task<IResult> GetAllProducts(IProductService service)
+    private static async Task<IResult> GetProducts(IProductService service, int? pageNumber = null, int? pageSize = null, string? search = null, int? categoryId = null)
     {
-        var products = (await service.GetAllAsync()).Select(p => p.ToDto());
-        return TypedResults.Ok(products);
+        // If paging params are not provided, preserve existing behavior (return all)
+        if (!pageNumber.HasValue || !pageSize.HasValue)
+        {
+            var products = (await service.GetAllAsync()).Select(p => p.ToDto());
+            return TypedResults.Ok(products);
+        }
+
+        // Validate / coerce paging params
+        var pn = Math.Max(1, pageNumber.Value);
+        var ps = Math.Max(1, pageSize.Value);
+
+        var (items, total) = await service.GetPagedAsync(pn, ps, search, categoryId);
+        var dtoItems = items.Select(p => p.ToDto());
+        var paged = new PaginatedResponse<ProductDto> { Items = dtoItems, TotalCount = total };
+        return TypedResults.Ok(paged);
     }
 
     private static async Task<IResult> GetProductById(IProductService service, int id)
